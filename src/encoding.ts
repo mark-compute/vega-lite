@@ -47,6 +47,7 @@ import {EncodingFacetMapping} from './spec/facet';
 import {AggregatedFieldDef, BinTransform, TimeUnitTransform} from './transform';
 import {TEMPORAL} from './type';
 import {keys, some} from './util';
+import {normalizeTimeUnit} from './timeunit';
 
 export interface Encoding<F extends Field> {
   /**
@@ -267,7 +268,9 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<Field>, conf
   forEach(oldEncoding, (channelDef, channel) => {
     // Extract potential embedded transformations along with remaining properties
     if (isFieldDef(channelDef)) {
-      const {field, aggregate: aggOp, timeUnit, bin, ...remaining} = channelDef;
+      const {field, aggregate: aggOp, bin, ...remaining} = channelDef;
+      const timeUnitParams = normalizeTimeUnit(channelDef.timeUnit);
+      const timeUnit = timeUnitParams?.units;
       if (aggOp || timeUnit || bin) {
         const guide = getGuide(channelDef);
         const isTitleDefined = guide && guide.title;
@@ -327,7 +330,13 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<Field>, conf
               newFieldDef['type'] = 'quantitative';
             }
           } else if (timeUnit) {
-            timeUnits.push({timeUnit, field, as: newField});
+            timeUnits.push({
+              timeUnit,
+              field,
+              as: newField,
+              step: timeUnitParams?.step,
+              timezone: timeUnitParams?.timezone
+            });
 
             // define the format type for later compilation
             const formatType = isTypedFieldDef(channelDef) && channelDef.type !== TEMPORAL && 'time';
